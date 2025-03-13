@@ -1,21 +1,26 @@
 package db
 
 import (
-	"database/sql"
 	"fmt"
 	_ "github.com/lib/pq"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 	"os"
+	"time"
 )
 
 type DB struct {
-	*sql.DB
+	*gorm.DB
 }
 
 type ComputationTask struct {
-	ID     int
-	Status string
-	Input  string
-	Result string
+	ID        uint   `gorm:"primaryKey"`
+	Status    string `gorm:"type:varchar(50)"`
+	Input     string
+	Result    string
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 func NewDB() (*DB, error) {
@@ -23,20 +28,15 @@ func NewDB() (*DB, error) {
 	if connStr == "" {
 		return nil, fmt.Errorf("DATABASE_URL environment variable is not set")
 	}
-	db, err := sql.Open("postgres", connStr)
+
+	db, err := gorm.Open(postgres.Open(connStr), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
-	// Initialize schema
-	_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS computation_tasks (
-            id SERIAL PRIMARY KEY,
-            status VARCHAR(50),
-            input TEXT,
-            result TEXT
-        )`)
-	if err != nil {
+
+	if err := db.AutoMigrate(&ComputationTask{}); err != nil {
 		return nil, err
 	}
+
 	return &DB{db}, nil
 }
